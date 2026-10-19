@@ -5,7 +5,7 @@ Development date: 2026-09-06. Tests run in disposable fixtures; production repos
 ## Automated checks
 
 - `python scripts/validate.py`: active skill frontmatter, local references, both provider manifests and shared-runner presence.
-- `python -m unittest discover -s tests -v`: **24 passing tests** with fake CLI executables and real temporary Git repositories, without model calls. The 24th pins the two inspector pairings `claudex-code-review` uses from each host.
+- `python -m unittest discover -s tests -v`: **38 passing tests** on 2026-10-18, with fake CLI executables and real temporary Git repositories, without model calls. One of them pins the two inspector pairings `claudex-code-review` uses from each host.
 - Codex Skill Creator validator: all three active skills at the time of that run.
 - Codex Plugin Creator validator: `.codex-plugin/plugin.json`.
 - `git diff --check`.
