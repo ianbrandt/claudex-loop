@@ -14,7 +14,7 @@ The reviews run through the shared runner's `inspect` mode from the sibling `cla
 | Argument | Default | Meaning |
 |---|---|---|
 | target | current change | A PR number, a branch name, or a path; none means the current checkout's change |
-| `level` | `medium` | `low`, `medium`, `high`, `xhigh`, or `max`, passed to both CLIs as `--effort`; Codex has no `max`, so pass it `xhigh` |
+| `level` | `xhigh` | `low`, `medium`, `high`, `xhigh`, or `max`, passed to both CLIs as `--effort`; Codex has no `max`, so pass it `xhigh` |
 | `claude_model`, `codex_model` | each CLI's configuration | Explicit `--model` for that reviewer |
 | `challenge` | `on` | `off` skips the cross-examination calls |
 | `findings_tool` | `on` | `off` prints the whole report as text instead of using a host findings tool |
@@ -54,7 +54,7 @@ One file outside the checkout, passed to the runner as `--plan`, identical for b
 
 ## Launch both reviews
 
-Run the two calls in parallel, backgrounded, each with its own `--artifacts` directory outside the checkout. The default timeout is 600 seconds; raise `--timeout` for a large diff.
+Run the two calls in parallel, backgrounded, each with its own `--artifacts` directory outside the checkout. At `xhigh` and above, pass `--timeout 1200`: a Claude review at `xhigh` can run past the runner's 600-second default. Raise it further for a large diff.
 
 ```text
 # Host Claude Code: Codex reviews, then Claude reviews
