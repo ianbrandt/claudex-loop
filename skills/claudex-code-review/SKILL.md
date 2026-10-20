@@ -92,8 +92,9 @@ With `findings_file`, an unattended caller hands verification to a later stage, 
 - `id`: your own, such as `H1`, since both reviewers number from `F1`.
 - `class`: `agreed` or `contested`.
 - `found_by`: `both`, `claude`, or `codex`.
-- `cross_examination`: `confirmed`, `refuted`, `unverifiable`, `not assessed`, or `not run` for an agreed finding or with `challenge=off`, plus the other reviewer's reason.
-- `reports`: each reviewer's finding as returned, with its `severity`, `path`, `evidence`, and `fix`.
+- `cross_examination`: `confirmed`, `refuted`, `unverifiable`, `not assessed`, or `not run` for an agreed finding or with `challenge=off`.
+- `cross_examination_reason`: the other reviewer's reason, including any part it refuted while confirming the rest.
+- `reports`: each reviewer's finding as returned, its `id`, `severity`, `path`, `evidence`, and `fix`, plus `reviewer` (`claude` or `codex`).
 
 None of them is an issue until the later stage probes it. The report lists them under the headline `Found N unverified findings`, or `Incomplete review` when a reviewer did not complete, with who found each, and has no `Refuted` or `Disputed` lists.
 
