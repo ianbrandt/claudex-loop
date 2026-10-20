@@ -43,6 +43,12 @@ if case == 'mutate_code':
     pathlib.Path('new.py').write_text('changed during inspection')
 if case == 'build':
     pathlib.Path('built.py').write_text('print(42)\n')
+if case == 'sandboxed_status':
+    import subprocess
+    status = subprocess.run(['git', 'status', '--short'], capture_output=True, env={**os.environ, 'FAKE_SANDBOX': '1'})
+    if status.returncode:
+        sys.stderr.buffer.write(status.stderr)
+        sys.exit(1)
 session = '12345678-1234-4567-8123-123456789abc'
 if case == 'wrong_session':
     session = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
@@ -164,6 +170,18 @@ class RunnerTests(unittest.TestCase):
                     self.assertTrue((path.parent / "stderr.txt").exists())
                     if case == "exit":
                         self.assertIn("Authentication failed", (path.parent / "stderr.txt").read_text())
+
+    def test_codex_runs_with_a_refreshed_index_so_git_status_needs_no_clean_filter(self):
+        # The filter fails under FAKE_SANDBOX, as Git LFS's does in Codex's read-only sandbox.
+        self.git("config", "filter.sandboxed.clean", 'sh -c \'test -z "$FAKE_SANDBOX" && cat\'')
+        self.git("config", "filter.sandboxed.required", "true")
+        (self.repo / ".gitattributes").write_text("*.bin filter=sandboxed\n")
+        (self.repo / "asset.bin").write_text("binary\n")
+        self.git("add", ".")
+        self.git("commit", "-qm", "filtered asset")
+        os.utime(self.repo / "asset.bin", (1_000_000_000, 1_000_000_000))  # stale stat info, as after a checkout
+        code, record, _, error = self.invoke(case="sandboxed_status")
+        self.assertEqual((code, record["status"]), (0, "completed"), error)
 
     def test_missing_codex_completion_is_failure(self):
         code, record, _, _ = self.invoke(case="incomplete")

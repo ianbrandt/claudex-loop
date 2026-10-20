@@ -428,6 +428,10 @@ def run(args) -> int:
         save(run_dir / "command.json", argv)
         print(json.dumps({"provider": provider, "model": args.model or "CLI default (unresolved)",
                           "mode": args.mode, "artifacts": str(run_dir)}), flush=True)
+        if provider == "codex":
+            # Stale index entries make git rerun clean filters, and Git LFS's cannot write in Codex's sandbox.
+            subprocess.run(["git", "update-index", "-q", "--refresh"], cwd=repo, capture_output=True,
+                           timeout=args.timeout)
         code = execute(argv, prompt, repo, run_dir, args.timeout)
         record["exit_code"] = code
         if code:
