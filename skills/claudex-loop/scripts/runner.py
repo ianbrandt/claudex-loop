@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import signal
 import subprocess
@@ -37,6 +38,27 @@ REVIEW_SCHEMA = {
 
 class RunError(Exception):
     pass
+
+
+class UsageLimitError(RunError):
+    def __init__(self, message: str, retry_at):
+        super().__init__(message)
+        self.retry_at = retry_at
+
+
+def codex_usage_limit(run_dir: Path) -> None:
+    """Raise UsageLimitError when Codex refused the turn on a usage limit."""
+    for line in (run_dir / "stdout.txt").read_text(encoding="utf-8", errors="replace").splitlines():
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        error = event.get("error") if isinstance(event, dict) and event.get("type") == "turn.failed" else None
+        message = error.get("message") if isinstance(error, dict) else None
+        # Codex reports the limit only as English text, e.g. "...try again at 6:00 PM."
+        if isinstance(message, str) and "usage limit" in message.lower():
+            retry = re.search(r"try again at (.+?)\.?$", message)
+            raise UsageLimitError("Codex usage limit: " + message, retry.group(1) if retry else None)
 
 
 def digest(data: bytes) -> str:
@@ -456,6 +478,8 @@ def run(args) -> int:
                           "mode": args.mode, "artifacts": str(run_dir)}), flush=True)
         code = execute(argv, prompt, repo, run_dir, args.timeout)
         record["exit_code"] = code
+        if provider == "codex":
+            codex_usage_limit(run_dir)
         if code:
             raise RunError(f"{provider} exited {code}; inspect stdout.txt and stderr.txt.")
         record.update(parse_result(provider, args.mode, run_dir,
@@ -469,6 +493,8 @@ def run(args) -> int:
                 raise RunError("Builder changed HEAD despite the no-commit contract. Inspect before proceeding.")
             record["snapshot"] = snapshot(repo, args.base)
         record["status"] = "completed"
+    except UsageLimitError as exc:
+        record.update(status="usage_limit", error=str(exc), retry_at=exc.retry_at)
     except (RunError, OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
         record.update(status="failed", error=str(exc))
     record["elapsed_seconds"] = round(time.time() - record["started_at"], 2)
