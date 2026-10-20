@@ -18,6 +18,7 @@ The reviews run through the shared runner's `inspect` mode from the sibling `cla
 | `claude_model`, `codex_model` | each CLI's configuration | Explicit `--model` for that reviewer |
 | `challenge` | `on` | `off` skips the cross-examination calls |
 | `counts` | none | A file of this repository's own what-counts lines, added to the brief; never a file the change under review can edit |
+| `dispositions` | none | A file of findings already ruled on in an earlier round, each with its ruling, added to the brief as not counting |
 | `findings_tool` | `on` | `off` prints the whole report as text instead of using a host findings tool |
 | `--comment` | off | Post the final report as one PR comment |
 | `--fix` | off | Fix the reported issues in the working tree after the report |
@@ -51,6 +52,7 @@ One file outside the checkout, passed to the runner as `--plan`, identical for b
 - In-scope paths and the base commit.
 - What counts: correctness bugs introduced by the change, security defects, divergence from the stated intent, tests that do not test what they claim, and a violation of a `CLAUDE.md` or `AGENTS.md` rule the reviewer quotes. With `counts`, add that file's lines here verbatim. Typical lines cover a doc comment or design-doc claim the change makes false, and an edit that silently produces wrong output. Read the file from outside the checkout or at the base commit, so the change cannot set its own rules.
 - What does not count: pre-existing defects, anything a compiler, linter, or type checker reports, style no repository guideline requires, and changes that are the point of the PR. A defect on an unchanged line counts when the evidence connects it to the change, such as an existing caller broken by a new return value.
+- With `dispositions`, the findings already ruled on, each with its ruling, such as fixed, kept as documented behavior, or filed for later. Neither reviewer raises one again without new evidence, such as a fix that is incomplete or a later commit that broke it again.
 - The level guidance above, and the evidence rule: every finding includes a concrete failure scenario or a source reference.
 
 ## Launch both reviews
@@ -80,7 +82,7 @@ For each provider, run one more fresh `inspect` on the same snapshot with a host
 
 ## Verify
 
-This step always runs, whatever the reviewers agreed on. Verify every finding you will report yourself: read the code, and where feasible run the failing scenario or a test. Verify a finding the other provider refuted like any other, by probe where feasible: a refutation can rest on scope or significance while agreeing with the facts. It is an issue when you verified it and can answer the refutation with evidence; otherwise list it as refuted, with both positions. A finding neither confirmed nor refuted, including one the other reviewer never assessed, is an issue when you verified it, attributed to its one reviewer; otherwise it is listed as disputed, with each position and what you could not verify. A finding both reviewers agreed on that you could not verify goes in the `Disputed` list, marked agreed but unverified; it is not counted as an issue and `--fix` does not apply it. Only findings you verified are issues. Drop nothing silently. Findings outside the brief's scope are listed as out of scope.
+This step always runs, whatever the reviewers agreed on. Verify every finding you will report yourself: read the code, and where feasible run the failing scenario or a test. Verify a finding the other provider refuted like any other, by probe where feasible: a refutation can rest on scope or significance while agreeing with the facts. It is an issue when you verified it and can answer the refutation with evidence; otherwise list it as refuted, with both positions. A finding neither confirmed nor refuted, including one the other reviewer never assessed, is an issue when you verified it, attributed to its one reviewer; otherwise it is listed as disputed, with each position and what you could not verify. A finding both reviewers agreed on that you could not verify goes in the `Disputed` list, marked agreed but unverified; it is not counted as an issue and `--fix` does not apply it. Only findings you verified are issues. Drop nothing silently. Findings outside the brief's scope are listed as out of scope. A finding that repeats one in `dispositions`, matched by file and defect rather than by id, with no new evidence is listed as previously ruled, not verified again.
 
 ## Report
 
@@ -89,7 +91,7 @@ Print the report in the conversation:
 - A heading, then `Found N issues`, `No issues found`, or `Incomplete review`. `No issues found` requires two completed reviews with no findings.
 - Each issue: severity, a one-line description, who found it (`both`, `claude, confirmed by codex`, `codex, host-verified`), the evidence, and a link to the file and lines. For a PR, use the full head commit SHA in the link so it renders on GitHub.
 - Each issue's suggested fix, from the reviewer's `fix` field, labelled `unprobed` unless you ran it against the failing scenario. Only the defect is verified, and in past fix rounds an adopted suggestion has introduced the next regression.
-- `Refuted` and `Disputed` lists with the reason or both positions, and `Out of scope` when applicable.
+- `Refuted` and `Disputed` lists with the reason or both positions, and `Out of scope` and `Previously ruled` when applicable.
 - Coverage and limitations from each reviewer, and each reviewer's requested and observed model.
 - No emoji and no attribution footer.
 
