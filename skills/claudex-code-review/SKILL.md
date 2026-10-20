@@ -20,11 +20,12 @@ The reviews run through the shared runner's `inspect` mode from the sibling `cla
 | `counts` | none | A file of this repository's own what-counts lines, added to the brief; never a file the change under review can edit |
 | `dispositions` | none | A file of findings already ruled on in an earlier round, each with its ruling, added to the brief as not counting |
 | `since` | none | A commit inside the change, such as the last one before a fix round; the commits after it are the focus of the review |
+| `findings_file` | none | Write the classified findings to this path, outside both the user's checkout and the review worktree, for a later stage to verify, and skip host verification |
 | `findings_tool` | `on` | `off` prints the whole report as text instead of using a host findings tool |
 | `--comment` | off | Post the final report as one PR comment |
 | `--fix` | off | Fix the reported issues in the working tree after the report |
 
-At `low` and `medium`, reviewers report only findings they would stake a review on. At `high` and above they also report likely defects, with the uncertainty stated in the evidence. Echo the target, base commit, level, and requested models before launching.
+At `low` and `medium`, reviewers report only findings they would stake a review on. At `high` and above they also report likely defects, with the uncertainty stated in the evidence. Echo the target, base commit, level, and requested models before launching. Refuse `findings_file` together with `--fix` or `--comment` before launching, since both need verified issues.
 
 ## Resolve the target
 
@@ -78,7 +79,7 @@ A result with `status: completed` and verdict `APPROVED` or `REVISE` is a comple
 
 ## Cross-examine
 
-Merge the two finding lists. A defect both reviewers reported is *agreed*; every other finding is *contested*. Skip the rest of this section when `challenge=off` or when nothing is contested; the verification below still runs.
+Merge the two finding lists. A defect both reviewers reported is *agreed*; every other finding is *contested*. Skip the rest of this section when `challenge=off` or when nothing is contested; the verification below still runs, except for its probes with `findings_file`.
 
 For each provider, run one more fresh `inspect` on the same snapshot with a host-authored `--feedback` file that lists the other provider's contested findings without attribution. Ask the reviewer to confirm each with independent evidence, refute it with evidence, or mark it unverifiable, prefixing each confirmation with the id you supplied so confirmations are separable from new findings. Confirmed findings come back in `findings`; ask for refuted and unverifiable ids in `summary`. A finding first raised in a challenge run is a single-provider finding that the other reviewer did not assess; it is verified or listed as disputed with that note, and not cross-examined again. One round.
 
@@ -86,18 +87,28 @@ For each provider, run one more fresh `inspect` on the same snapshot with a host
 
 This step always runs, whatever the reviewers agreed on. Verify every finding you will report yourself: read the code, and where feasible run the failing scenario or a test. Verify a finding the other provider refuted like any other, by probe where feasible: a refutation can rest on scope or significance while agreeing with the facts. It is an issue when you verified it and can answer the refutation with evidence; otherwise list it as refuted, with both positions. A finding neither confirmed nor refuted, including one the other reviewer never assessed, is an issue when you verified it, attributed to its one reviewer; otherwise it is listed as disputed, with each position and what you could not verify. A finding both reviewers agreed on that you could not verify goes in the `Disputed` list, marked agreed but unverified; it is not counted as an issue and `--fix` does not apply it. Only findings you verified are issues. Drop nothing silently. Findings outside the brief's scope are listed as out of scope. A finding that repeats one in `dispositions`, matched by file and defect rather than by id, with no new evidence is listed as previously ruled, not verified again.
 
+With `findings_file`, an unattended caller hands verification to a later stage, such as a fix agent. Sort out-of-scope and previously ruled findings as above, but read and probe nothing else. Write every other finding to that path as a JSON array, `[]` when there are none, with one object per defect:
+
+- `id`: your own, such as `H1`, since both reviewers number from `F1`.
+- `class`: `agreed` or `contested`.
+- `found_by`: `both`, `claude`, or `codex`.
+- `cross_examination`: `confirmed`, `refuted`, `unverifiable`, `not assessed`, or `not run` for an agreed finding or with `challenge=off`, plus the other reviewer's reason.
+- `reports`: each reviewer's finding as returned, with its `severity`, `path`, `evidence`, and `fix`.
+
+None of them is an issue until the later stage probes it. The report lists them under the headline `Found N unverified findings`, or `Incomplete review` when a reviewer did not complete, with who found each, and has no `Refuted` or `Disputed` lists.
+
 ## Report
 
 Print the report in the conversation:
 
-- A heading, then `Found N issues`, `No issues found`, or `Incomplete review`. `No issues found` requires two completed reviews with no findings.
+- A heading, then `Found N issues`, `Found N unverified findings`, `No issues found`, or `Incomplete review`. `No issues found` requires two completed reviews with no findings.
 - Each issue: severity, a one-line description, who found it (`both`, `claude, confirmed by codex`, `codex, host-verified`), the evidence, and a link to the file and lines. For a PR, use the full head commit SHA in the link so it renders on GitHub.
 - Each issue's suggested fix, from the reviewer's `fix` field, labelled `unprobed` unless you ran it against the failing scenario. Only the defect is verified, and in past fix rounds an adopted suggestion has introduced the next regression.
 - `Refuted` and `Disputed` lists with the reason or both positions, and `Out of scope` and `Previously ruled` when applicable.
 - Coverage and limitations from each reviewer, and each reviewer's requested and observed model.
 - No emoji and no attribution footer.
 
-In Claude Code, unless `findings_tool=off`, report the findings through the `ReportFindings` tool as well: call it once with `level`, the issues most severe first as `verdict: CONFIRMED`, and the disputed findings as `verdict: PLAUSIBLE`, with who found each in its `summary` and both positions for a disputed one, or an empty list when there are neither. Those findings are then not printed again, except in a `--comment` preview; the rest of the report stays in the conversation. With `findings_tool=off`, or on a host with no such tool, print the whole report.
+In Claude Code, unless `findings_tool=off`, report the findings through the `ReportFindings` tool as well: call it once with `level`, the issues most severe first as `verdict: CONFIRMED`, and the disputed findings, or every finding with `findings_file`, as `verdict: PLAUSIBLE`, with who found each in its `summary` and both positions for a disputed one, or an empty list when there are neither. Those findings are then not printed again, except in a `--comment` preview; the rest of the report stays in the conversation. With `findings_tool=off`, or on a host with no such tool, print the whole report.
 
 An `APPROVED` verdict from a reviewer means no material findings within that reviewer's stated coverage. The user decides whether to merge.
 
