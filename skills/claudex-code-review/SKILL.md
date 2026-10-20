@@ -87,6 +87,7 @@ Print the report in the conversation:
 
 - A heading, then `Found N issues`, `No issues found`, or `Incomplete review`. `No issues found` requires two completed reviews with no findings.
 - Each issue: severity, a one-line description, who found it (`both`, `claude, confirmed by codex`, `codex, host-verified`), the evidence, and a link to the file and lines. For a PR, use the full head commit SHA in the link so it renders on GitHub.
+- Each issue's suggested fix, from the reviewer's `fix` field, labelled `unprobed` unless you ran it against the failing scenario. Only the defect is verified, and in past fix rounds an adopted suggestion has introduced the next regression.
 - `Refuted` and `Disputed` lists with the reason or both positions, and `Out of scope` when applicable.
 - Coverage and limitations from each reviewer, and each reviewer's requested and observed model.
 - No emoji and no attribution footer.
@@ -99,4 +100,4 @@ An `APPROVED` verdict from a reviewer means no material findings within that rev
 
 `--comment` authorizes posting the report once, as a single PR comment with `gh pr comment`, after showing the text in the conversation. That text is the full report, issues included. For a PR target, post to that PR in its repository. For a branch or no-target review, resolve the PR with `gh pr view BRANCH --json url` in the checkout's repository; when there is none, print the report and say so. Without the flag, print only. Never post inline review comments, an approval, or a request for changes.
 
-`--fix` applies to the current checkout only, for a no-target or path target; for a PR or branch target, report and stop. Fix the reported issues only, never a refuted, disputed, or out-of-scope finding, even one whose facts you verified; run the repository's tests, and state that the fixes are yours and reviewed by neither provider. Run the review again over the fixed tree to cover them.
+`--fix` applies to the current checkout only, for a no-target or path target; for a PR or branch target, report and stop. Fix the reported issues only, never a refuted, disputed, or out-of-scope finding, even one whose facts you verified. Treat a reviewer's suggested fix as untested: rerun the failing scenario against the fix you apply, or write a test that shows the defect where you verified it by reading, then run the repository's tests, and state that the fixes are yours and reviewed by neither provider. Run the review again over the fixed tree to cover them.
