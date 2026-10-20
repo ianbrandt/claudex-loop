@@ -65,7 +65,7 @@ python RUNNER inspect --host codex --repo WT --plan BRIEF --base BASE [--model M
 python RUNNER inspect --host codex --builder claude --repo WT --plan BRIEF --base BASE [--model M --effort E]
 ```
 
-The runner refuses an inspector equal to `--builder`, which defaults to the host. A code review has no builder, so the second call passes `--builder` as the provider that is not reviewing in that call; the `roles` block in its `result.json` is diagnostic only, and the `provider` field identifies which provider reviewed. Read each `result.json`. A failed, timed-out, or malformed result is not a review; report it and do not substitute the other provider's result for it. Record the requested and observed model for each reviewer separately; for Codex, the observed model is `effective_model` when the runner records one.
+The runner refuses an inspector equal to `--builder`, which defaults to the host. A code review has no builder, so the second call passes `--builder` as the provider that is not reviewing in that call; the `roles` block in its `result.json` is diagnostic only, and the `provider` field identifies which provider reviewed. Each call writes its result to `DIR/claudex-XXXXXXXX/result.json`, a new directory under the `--artifacts DIR` passed to it, and prints that directory as `artifacts` just before launch. Read each `result.json`. A failed, timed-out, or malformed result is not a review; report it and do not substitute the other provider's result for it. Record the requested and observed model for each reviewer separately; for Codex, the observed model is `effective_model` when the runner records one.
 
 ## Classify each result
 
