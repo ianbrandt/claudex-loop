@@ -23,6 +23,8 @@ Each call prints its unique artifact directory immediately before launch. It con
 
 After completion, read `result.json`; inspect diagnostics on failure. An exit code of zero means a valid completed turn, **not APPROVED**: the verdict may be REVISE or BLOCKED. Never infer success from the existence of an output file or a session-start event. Do not reuse the last successful result after a failed newer round.
 
+A Codex turn refused on a usage limit is recorded with `status` `usage_limit` instead of `failed`, Codex's message in `error`, and `retry_at` set to the time Codex printed after "try again at" (local time, sometimes without a date). Retry after that time.
+
 Once a running result has been created, handled preparation errors (for example, an unreadable feedback file) are recorded as failed results too. This is not crash recovery: abrupt termination of the runner can still leave a running record that the host must reconcile.
 
 ```text

@@ -64,6 +64,11 @@ if 'exec' in sys.argv:
     print(json.dumps({'type':'thread.started', 'thread_id':session}))
     if case == 'turn_failed':
         print(json.dumps({'type':'turn.failed', 'error':{'message':'quota'}}))
+    elif case == 'usage_limit':
+        message = "You've hit your usage limit. Visit the usage page or try again at Oct 19th, 2026 12:06 AM."
+        print(json.dumps({'type':'error', 'message':message}))
+        print(json.dumps({'type':'turn.failed', 'error':{'message':message}}))
+        sys.exit(1)
     elif case != 'incomplete':
         print(json.dumps({'type':'turn.completed','usage':{'input_tokens':10,'output_tokens':5}}))
 else:
@@ -164,6 +169,14 @@ class RunnerTests(unittest.TestCase):
                     self.assertTrue((path.parent / "stderr.txt").exists())
                     if case == "exit":
                         self.assertIn("Authentication failed", (path.parent / "stderr.txt").read_text())
+
+    def test_codex_usage_limit_has_its_own_status_and_retry_time(self):
+        code, record, _, _ = self.invoke(case="usage_limit")
+        self.assertEqual(code, 1)
+        self.assertEqual(record["status"], "usage_limit")
+        self.assertEqual(record["retry_at"], "Oct 19th, 2026 12:06 AM")
+        self.assertIn("hit your usage limit", record["error"])
+        self.assertNotIn("verdict", record)
 
     def test_missing_codex_completion_is_failure(self):
         code, record, _, _ = self.invoke(case="incomplete")
