@@ -14,7 +14,7 @@ The reviews run through the shared runner's `inspect` mode from the sibling `cla
 | Argument | Default | Meaning |
 |---|---|---|
 | target | current change | A PR number, a branch name, or a path; none means the current checkout's change |
-| `level` | `xhigh` | `low`, `medium`, `high`, `xhigh`, or `max`, passed to both CLIs as `--effort`; Codex has no `max`, so pass it `xhigh` |
+| `level` | `xhigh` | `low`, `medium`, `high`, `xhigh`, or `max`; the host forwards it to each runner call via `--effort`. Codex has no `max`, so pass it `xhigh`. Omitting `--effort` lets Codex fall back to its own configured `reasoning_effort`, which on a non-OpenAI provider often resolves to `none` and the review completes in seconds with a malformed reply |
 | `claude_model`, `codex_model` | each CLI's configuration | Explicit `--model` for that reviewer |
 | `challenge` | `on` | `off` skips the cross-examination calls |
 | `counts` | none | A file of this repository's own what-counts lines, added to the brief; never a file the change under review can edit |
