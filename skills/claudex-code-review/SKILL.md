@@ -89,7 +89,7 @@ This step always runs, whatever the reviewers agreed on. Verify every finding yo
 
 With `findings_file`, an unattended caller hands verification to a later stage, such as a fix agent. Sort out-of-scope and previously ruled findings as above, but read and probe nothing else. Write every other finding to that path as a JSON array, `[]` when there are none, with one object per defect:
 
-- `id`: your own, such as `H1`, since both reviewers number from `F1`.
+- `id`: your own, such as `H1`, since each reviewer's ids are unique only within its own review.
 - `class`: `agreed` or `contested`.
 - `found_by`: `both`, `claude`, or `codex`.
 - `cross_examination`: `confirmed`, `refuted`, `unverifiable`, `not assessed`, or `not run` for an agreed finding or with `challenge=off`.
