@@ -223,9 +223,18 @@ def command(provider: str, mode: str, run_dir: Path, model=None, effort=None,
     review = mode != "build"
     if provider == "codex":
         args = ["exec"] + (["resume", session] if session else [])
-        args += (["-c", 'sandbox_mode="read-only"'] if session and review else
+        # On Windows the `read-only` sandbox has no Seatbelt/Landlock analogue in
+        # Codex 0.163.0, so every exec_command is refused—git show included—and
+        # the review comes back BLOCKED in ~30s. Fall back to `workspace-write`
+        # with network off; the review stays read-only in practice because the
+        # reviewer is instructed to only read, MCP servers are disabled, and no
+        # write tools are wired in, matching how Claude's --safe-mode is used.
+        read_only = "workspace-write" if sys.platform == "win32" else "read-only"
+        args += (["-c", f'sandbox_mode="{read_only}"'] if session and review else
                  ["-c", 'sandbox_mode="workspace-write"'] if session else
-                 ["-s", "read-only" if review else "workspace-write"])
+                 ["-s", read_only if review else "workspace-write"])
+        if sys.platform == "win32" and review:
+            args += ["-c", "sandbox_workspace_write.network_access=false"]
         args += ["-c", 'approval_policy="never"', "--json", "-o", str(run_dir / "reply.txt")]
         # Plugins/apps (computer use, browser) and the notify hook act outside the sandbox.
         args += ["--disable", "apps", "--disable", "plugins", "-c", "notify=[]"]
