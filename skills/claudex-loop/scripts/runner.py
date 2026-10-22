@@ -460,7 +460,10 @@ def run(args) -> int:
             "Report actual coverage and limitations. APPROVED means no material unresolved defects; "
             "REVISE needs concrete findings; BLOCKED means required evidence could not be inspected. "
             "You cannot edit files, run tests or delegate. Do not claim tests passed. "
-            "Return only the requested structured review.\n"
+            "Return a JSON object with exactly these top-level keys and nothing else: "
+            "verdict, summary, findings, coverage, limitations. "
+            "findings is an array of objects with exactly id, severity, path, evidence, fix; "
+            "coverage and limitations are arrays of strings.\n"
         ) if args.mode != "build" else (
             "Implement the attached frozen work order within this checkout. Do not commit, push or publish. "
             "Resolve source paths relative to this checkout; never edit an original checkout named in the plan. "
