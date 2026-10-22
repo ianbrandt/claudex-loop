@@ -156,8 +156,11 @@ class RunnerTests(unittest.TestCase):
         self.assertNotIn("--last", args)
 
     def test_codex_review_falls_back_to_workspace_write_on_windows(self):
-        # Codex 0.163's read-only sandbox blocks every exec on Windows, so
-        # reviewers run under workspace-write with network off instead.
+        # Codex 0.163's read-only sandbox blocks every exec on Windows and
+        # `-s workspace-write` plus `approval_policy="never"` auto-rejects
+        # pwsh.exe, so a fresh reviewer run is launched with --approve-for-me
+        # instead; a resumed review falls back to a workspace-write override
+        # since --approve-for-me only exists on `codex exec`.
         for session in (None, SESSION):
             with self.subTest(session=session), patch.object(runner.sys, "platform", "win32"):
                 args = runner.command("codex", "review", self.root, session=session)
@@ -165,8 +168,39 @@ class RunnerTests(unittest.TestCase):
             self.assertIn("sandbox_workspace_write.network_access=false", args)
             if session:
                 self.assertIn('sandbox_mode="workspace-write"', args)
+                self.assertNotIn("--approve-for-me", args)
+                self.assertNotIn("-s", args)
             else:
-                self.assertEqual(args[args.index("-s") + 1], "workspace-write")
+                self.assertIn("--approve-for-me", args)
+                self.assertNotIn("-s", args)
+
+    def test_codex_review_keeps_posix_sandbox_without_approve_for_me(self):
+        # --approve-for-me is a Windows-only workaround; posix review stays on
+        # `-s read-only` with the stock approval policy.
+        for session in (None, SESSION):
+            with self.subTest(session=session), patch.object(runner.sys, "platform", "linux"):
+                args = runner.command("codex", "review", self.root, session=session)
+            self.assertNotIn("--approve-for-me", args)
+            self.assertNotIn("sandbox_workspace_write.network_access=false", args)
+            if session:
+                self.assertIn('sandbox_mode="read-only"', args)
+                self.assertNotIn("-s", args)
+            else:
+                self.assertEqual(args[args.index("-s") + 1], "read-only")
+
+    def test_codex_build_never_uses_approve_for_me(self):
+        # Build mode's -s workspace-write must stay untouched by the review-only
+        # Windows fix; --approve-for-me conflicts with -s and would error.
+        for platform in ("win32", "linux"):
+            for session in (None, SESSION):
+                with self.subTest(platform=platform, session=session), \
+                     patch.object(runner.sys, "platform", platform):
+                    args = runner.command("codex", "build", self.root, session=session)
+                self.assertNotIn("--approve-for-me", args)
+                if session:
+                    self.assertIn('sandbox_mode="workspace-write"', args)
+                else:
+                    self.assertEqual(args[args.index("-s") + 1], "workspace-write")
 
     def test_failures_never_approve_and_keep_diagnostics(self):
         for host in ("claude", "codex"):
@@ -440,7 +474,11 @@ class RunnerTests(unittest.TestCase):
             self.assertFalse((Path(record["artifacts"]) / "command.json").exists())
 
     def test_codex_records_effective_settings_from_its_rollout(self):
-        # Issue #38: the effective model/effort/sandbox live in Codex's session rollout.
+        # Issue #38: the effective model/effort live in Codex's session rollout.
+        # sandbox_policy.type is deliberately not mirrored into result.json: on
+        # Windows with --approve-for-me the rollout logs the base sandbox
+        # (read-only) while workspace-write is used for auto-approved commands,
+        # so command.json is the only accurate source for the sandbox choice.
         home = self.root / "codex-home"
         day = home / "sessions" / "2026" / "10" / "14"
         day.mkdir(parents=True)
@@ -451,8 +489,8 @@ class RunnerTests(unittest.TestCase):
         with patch.dict(os.environ, {"CODEX_HOME": str(home)}):
             code, record, _, _ = self.invoke()
         self.assertEqual(code, 0)
-        self.assertEqual((record["effective_model"], record["effective_effort"], record["effective_sandbox"]),
-                         ("gpt-test", "low", "read-only"))
+        self.assertEqual((record["effective_model"], record["effective_effort"]), ("gpt-test", "low"))
+        self.assertNotIn("effective_sandbox", record)
         self.assertEqual(record["observed_models"], [])
 
     def test_codex_run_without_rollout_still_completes(self):

@@ -171,16 +171,23 @@ def command(provider: str, mode: str, run_dir: Path, model=None, effort=None,
     review = mode != "build"
     if provider == "codex":
         args = ["exec"] + (["resume", session] if session else [])
-        # On Windows the `read-only` sandbox has no Seatbelt/Landlock analogue in
-        # Codex 0.163.0, so every exec_command is refused—git show included—and
-        # the review comes back BLOCKED in ~30s. Fall back to `workspace-write`
-        # with network off; the review stays read-only in practice because the
-        # reviewer is instructed to only read, MCP servers are disabled, and no
-        # write tools are wired in, matching how Claude's --safe-mode is used.
+        # On Windows Codex 0.163.0 has no `read-only` sandbox backend, and
+        # `-s workspace-write` with `approval_policy="never"` still auto-rejects
+        # every out-of-workspace command (pwsh.exe, git), so the reviewer's own
+        # file reads come back as "blocked by policy". `--approve-for-me` auto-
+        # approves those under workspace-write for a fresh review session; the
+        # reviewer still only reads because its prompt forbids writes, MCP
+        # servers are disabled, and no write tools are wired in. The flag only
+        # exists on `codex exec`, not `exec resume`, so a resumed review falls
+        # back to the `sandbox_mode="workspace-write"` override and shares the
+        # auto-reject limitation if its reads need pwsh.exe.
         read_only = "workspace-write" if sys.platform == "win32" else "read-only"
-        args += (["-c", f'sandbox_mode="{read_only}"'] if session and review else
-                 ["-c", 'sandbox_mode="workspace-write"'] if session else
-                 ["-s", read_only if review else "workspace-write"])
+        if session:
+            args += ["-c", f'sandbox_mode="{read_only if review else "workspace-write"}"']
+        elif review and sys.platform == "win32":
+            args += ["--approve-for-me"]
+        else:
+            args += ["-s", read_only if review else "workspace-write"]
         if sys.platform == "win32" and review:
             args += ["-c", "sandbox_workspace_write.network_access=false"]
         args += ["-c", 'approval_policy="never"', "--json", "-o", str(run_dir / "reply.txt")]
@@ -238,11 +245,15 @@ def execute(argv: list[str], prompt: str, repo: Path, run_dir: Path, timeout: in
 
 
 def codex_effective_settings(session: str) -> dict:
-    """Best effort: the model, effort and sandbox the Codex client applied (#38).
+    """Best effort: the model and effort the Codex client applied (#38).
 
     Read from the last turn_context in Codex's session rollout, an undocumented
     internal file. These are client-side settings, not a server confirmation.
-    Any missing file or changed format leaves the record unchanged.
+    Any missing file or changed format leaves the record unchanged. The rollout's
+    `sandbox_policy.type` disagreed with the sandbox mode actually passed on the
+    command line (notably on Windows, where `--approve-for-me` leaves the base
+    sandbox at `read-only` and auto-approves under workspace-write), so the
+    sandbox is read off command.json instead when needed.
     """
     try:
         home = Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex")
@@ -255,9 +266,7 @@ def codex_effective_settings(session: str) -> dict:
                 context = event.get("payload")
         if not isinstance(context, dict):
             return {}
-        sandbox = context.get("sandbox_policy")
-        settings = {"effective_model": context.get("model"), "effective_effort": context.get("effort"),
-                    "effective_sandbox": sandbox.get("type") if isinstance(sandbox, dict) else None}
+        settings = {"effective_model": context.get("model"), "effective_effort": context.get("effort")}
         return {k: v for k, v in settings.items() if isinstance(v, str)}
     except (OSError, ValueError):
         return {}
