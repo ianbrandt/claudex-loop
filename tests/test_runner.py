@@ -148,11 +148,25 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(args[args.index("--permission-mode")+1], "dontAsk")
 
     def test_codex_resume_keeps_read_only_and_explicit_session(self):
-        args = runner.command("codex", "review", self.root, session=SESSION)
+        with patch.object(runner.sys, "platform", "linux"):
+            args = runner.command("codex", "review", self.root, session=SESSION)
         self.assertEqual(args[:3], ["exec", "resume", SESSION])
         self.assertIn('sandbox_mode="read-only"', args)
         self.assertNotIn("-s", args)
         self.assertNotIn("--last", args)
+
+    def test_codex_review_falls_back_to_workspace_write_on_windows(self):
+        # Codex 0.163's read-only sandbox blocks every exec on Windows, so
+        # reviewers run under workspace-write with network off instead.
+        for session in (None, SESSION):
+            with self.subTest(session=session), patch.object(runner.sys, "platform", "win32"):
+                args = runner.command("codex", "review", self.root, session=session)
+            self.assertNotIn("read-only", args)
+            self.assertIn("sandbox_workspace_write.network_access=false", args)
+            if session:
+                self.assertIn('sandbox_mode="workspace-write"', args)
+            else:
+                self.assertEqual(args[args.index("-s") + 1], "workspace-write")
 
     def test_failures_never_approve_and_keep_diagnostics(self):
         for host in ("claude", "codex"):
