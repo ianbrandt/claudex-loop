@@ -230,6 +230,12 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("timed out", record["error"])
 
+    def test_default_timeout_is_half_an_hour(self):
+        with patch.object(runner, "execute", wraps=runner.execute) as execute:
+            code, record, _, _ = self.invoke()
+        self.assertEqual(code, 0, record)
+        self.assertEqual(execute.call_args.args[4], 1800)
+
     def test_unique_artifacts_and_failed_round_does_not_reuse_reply(self):
         _, _, first, _ = self.invoke()
         code, record, second, _ = self.invoke(case="empty")
