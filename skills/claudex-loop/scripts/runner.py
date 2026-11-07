@@ -567,7 +567,7 @@ def main(argv=None) -> int:
     parser.add_argument("--unreviewed-spec", action="store_true")
     parser.add_argument("--proof", help="Exact agreed proof command, passed as data to the builder.")
     parser.add_argument("--artifacts", help="Persistent run directory outside the target checkout.")
-    parser.add_argument("--timeout", type=int, default=600)
+    parser.add_argument("--timeout", type=int, default=1800)
     args = parser.parse_args(argv)
     if hasattr(sys.stderr, "reconfigure"):
         sys.stderr.reconfigure(errors="backslashreplace")  # error text may hold any path (#31)
