@@ -60,7 +60,7 @@ One file outside the checkout, passed to the runner as `--plan`, identical for b
 
 ## Launch both reviews
 
-Run the two calls in parallel, backgrounded, each with its own `--artifacts` directory outside the checkout. Pass `--timeout 3600` on every call, at every effort level, so that only a hung reviewer is stopped. The runner's 600-second default is too short: a Claude review at `xhigh` on a large diff can take more than 1200 seconds.
+Run the two calls in parallel, backgrounded, each with its own `--artifacts` directory outside the checkout. Pass `--timeout 1800` on every call, at every effort level, so that only a hung reviewer is stopped. The runner's 600-second default is too short: a Claude review at `xhigh` on a large diff can take more than 1200 seconds.
 
 ```text
 # Host Claude Code: Codex reviews, then Claude reviews
